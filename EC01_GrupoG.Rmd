@@ -1,0 +1,601 @@
+---
+title: 'Estudo de caso 01: Comparação do IMC médio de alunos do PPGEE-UFMG ao longo de dois semestres'
+author: "Bernardo de Souza Silva, Fabio Emmanuel Ferreira Xavier e Isabela Costa Trivellato"
+date: "14 de Setembro de 2026"
+output:
+  pdf_document:
+    fig_caption: yes
+  html_document:
+    df_print: paged
+---
+
+```{r setup,results='hide',warning=FALSE,echo=FALSE}
+# A few initial definitions just to make sure all required packages are installed. Change as needed.
+# NOTE: It may echo some weird messages to the PDF on the first compile (package installation messages). Run twice and the problem will (hopefully) go away.
+if (!require(ggplot2, quietly = TRUE)){
+      install.packages("ggplot2")
+      }
+if (!require(devtools, quietly = TRUE)){
+      install.packages("devtools")
+      }
+ if (!require(broom, quietly = TRUE)){
+       devtools::install_github("dgrtwo/broom")
+      }
+if (!require(GGally, quietly = TRUE)){
+      install.packages("GGally")
+}
+if (!require(car, quietly = TRUE)){
+      install.packages("car")
+      }
+if (!require(pwr, quietly = TRUE)){
+      install.packages("pwr")
+      }
+```
+## Resumo
+Este estudo investiga possíveis alterações no índice de massa corporal (IMC) médio dos alunos do Programa de Pós-Graduação em Engenharia Elétrica da Universidade Federal de Minas Gerais (UFMG) entre os semestres 2016-2 e 2017-2, separando as amostras por sexo masculino e feminino. A comparação entre os semestres foi feita por meio do teste $t$ bilateral para duas amostras independentes e contou também com a verificação das premissas, a estimação dos intervalos de confiança e a análise de potência dos testes. Ao nível de significância de 5%, não foram encontradas evidências estatísticas suficientes de diferença no IMC médio entre os semestres, tanto para os homens ($p=0,5923$) quanto para as mulheres ($p=0,0856$). Porém, considerando uma diferença minimamente relevante de $1\ \text{kg/m}^2$, as potências estimadas foram de apenas 12,8% e 10,1% para as subpopulações masculina e feminina, respectivamente. Os resultados indicam baixa capacidade de detectar diferenças dessa magnitude devido aos reduzidos tamanhos amostrais disponíveis e à variabilidade dos dados.
+
+## Descrição do problema
+No presente estudo, deseja-se comparar o IMC médio dos alunos do Programa de Pós-Graduação em Engenharia Elétrica da UFMG nos semestres 2016-2 e 2017-2. A partir dessa comparação, busca-se investigar possíveis alterações relacionadas ao estilo de vida dos alunos entre os semestres. Como a análise será dividida por sexo (masculino e feminino), será realizada uma comparação para cada sexo. Dessa forma, o objetivo é investigar se houve alteração no IMC médio entre os semestres analisados, separadamente para homens e mulheres.
+
+## Planejamento experimental
+As duas amostras serão tratadas como independentes, uma vez que não há identificação que permita estabelecer um pareamento entre os alunos de 2016-2 e 2017-2. Como se deseja apenas investigar se houve alteração no IMC médio, sem estabelecer previamente se ele aumentou ou diminuiu, considera-se uma hipótese alternativa bilateral.
+
+Para comparar os IMCs médios dos dois semestres, será utilizado o teste $t$ para duas amostras independentes, uma vez que as variâncias populacionais são desconhecidas. A escolha entre o teste $t$ assumindo variâncias iguais e o teste $t$ de Welch será realizada posteriormente, a partir da avaliação das premissas relacionadas às variâncias dos grupos.
+
+Para a subpopulação masculina, definem-se as seguintes hipóteses:
+
+$$\begin{cases} H_{0,M}: \mu_{M,2016\text{-}2} = \mu_{M,2017\text{-}2} \\ H_{1,M}: \mu_{M,2016\text{-}2} \neq \mu_{M,2017\text{-}2} \end{cases}$$
+Ou seja, a hipótese nula $H_{0,M}$ estabelece que não há diferença entre os IMCs médios da subpopulação masculina nos semestres 2016-2 e 2017-2, enquanto a hipótese alternativa $H_{1,M}$ estabelece que há diferença.
+
+Para a subpopulação feminina, definem-se:
+
+$$\begin{cases} H_{0,F}: \mu_{F,2016\text{-}2} = \mu_{F,2017\text{-}2} \\ H_{1,F}: \mu_{F,2016\text{-}2} \neq \mu_{F,2017\text{-}2} \end{cases}$$
+Analogamente, a hipótese nula $H_{0,F}$ estabelece que não há diferença entre os IMCs médios da subpopulação feminina nos semestres 2016-2 e 2017-2, enquanto a hipótese alternativa $H_{1,F}$ estabelece que há diferença.
+
+O nível de significância adotado para os testes é de $\alpha=0,05$. Esse nível corresponde à probabilidade de rejeitar a hipótese nula quando ela é verdadeira, caracterizando o erro do tipo I [1].
+
+Para a análise de potência, será considerada uma diferença minimamente relevante de $\delta^*=1\ \text{kg/m}^2$. Esse valor foi adotado com base na literatura da área da saúde [2], na qual variações de pelo menos $1\ \text{kg/m}^2$ foram utilizadas como critério para caracterizar aumento ou redução do IMC. Dessa forma, neste estudo, uma diferença de $1\ \text{kg/m}^2$ será adotada como referência para uma alteração relevante entre os semestres. A partir desse valor, será avaliada a capacidade dos tamanhos amostrais disponíveis de detectar essa diferença e, posteriormente, será determinado o tamanho amostral necessário para atingir uma potência de 85%.
+
+### Descrição da coleta de dados
+Os dados coletados estão organizados em dois arquivos `.csv`, um para cada semestre. O arquivo referente ao semestre de 2016-2 possui cinco colunas separadas por vírgulas (`ID`, `Course`, `Gender`, `Height.m` e `Weight.kg`), enquanto o arquivo de 2017-2 possui quatro colunas separadas por ponto e vírgula (`Weight.kg`, `height.m`, `Sex` e `Age.years`).
+
+Foram registradas 49 observações em 2016-2 e 25 em 2017-2. Entretanto, o conjunto de 2016-2 inclui tanto alunos do Programa de Pós-Graduação em Engenharia Elétrica (28 observações) quanto alunos da graduação em Engenharia de Sistemas (21 observações). Assim, para este estudo, serão consideradas apenas as observações correspondentes aos alunos do Programa de Pós-Graduação em Engenharia Elétrica. Após essa seleção, a amostra de 2016-2 é composta por 21 homens e 7 mulheres. Para 2017-2, estão disponíveis 21 observações do sexo masculino e 4 do sexo feminino. Dessa forma, as comparações serão realizadas considerando tamanhos amostrais de $n_{2016-2}=21$ e $n_{2017-2}=21$ para a subpopulação masculina e $n_{2016-2}=7$ e $n_{2017-2}=4$ para a subpopulação feminina.
+
+Observa-se que os dois conjuntos de dados possuem estruturas diferentes quanto à quantidade de colunas, aos nomes das variáveis, ao conteúdo disponível e ao separador utilizado no arquivo. No conjunto de 2016-2 existem as colunas `ID` e `Course`, enquanto no conjunto de 2017-2 existe a coluna `Age.years`. Como essas informações não são necessárias para o cálculo do IMC, elas não serão utilizadas na análise. Por outro lado, as variáveis de sexo, peso e altura, necessárias para o estudo, estão presentes em ambos os conjuntos.
+
+Por fim, não há informações sobre a forma como os dados foram coletados nem sobre a ordem em que as observações foram registradas, o que constitui uma limitação do estudo.
+
+## Análise exploratória dos dados
+A leitura dos dados é feita a partir da função `read.csv`, que assume vírgula como separador dos dados. Portanto, como os dados do semestre de 2017-2 são separados por ponto e vírgula, é necessário especificar o separador. Os dados são armazenados em variáveis identificadas de acordo com o ano em que foram coletados.
+
+```{r leitura}
+# Leitura dos dados brutos
+dados_2016 <- read.csv("imc_20162.csv")
+dados_2017 <- read.csv("CS01_20172.csv", sep = ";")
+```
+
+Em seguida, é realizado um filtro nos dados de 2016-2 para manter apenas as observações pertencentes à população de interesse: os alunos do Programa de Pós-Graduação em Engenharia Elétrica (PPGEE). Para isso, são selecionadas, por meio da coluna `Course`, apenas as observações correspondentes aos alunos do PPGEE.
+
+```{r filtroppgee}
+# Selecionar apenas alunos do PPGEE em 2016/2
+dados_2016 <- dados_2016[dados_2016$Course == "PPGEE", ]
+```
+
+Então, é necessário padronizar os nomes das colunas dos dois conjuntos de dados, devido às diferenças na nomenclatura das variáveis de sexo e altura. No conjunto de 2017-2, a coluna `Sex` é renomeada para `Gender`, enquanto a coluna `height.m` é renomeada para `Height.m`, seguindo a nomenclatura utilizada no conjunto de 2016-2. Essa padronização permite que os dois conjuntos sejam posteriormente agrupados em uma única tabela.
+
+```{r padronizarcolunas}
+# Padronizar nomes das colunas
+names(dados_2017)[names(dados_2017) == "Sex"] <- "Gender"
+names(dados_2017)[names(dados_2017) == "height.m"] <- "Height.m"
+```
+
+Para realizar o cálculo do IMC, são utilizadas as colunas de peso (em kg) e altura (em metros) dos dois conjuntos, de acordo com a equação:
+
+$$
+IMC = \frac{Peso}{Altura^2}. \tag{1}
+$$
+
+Com isso, é criada uma coluna `IMC` em cada um dos conjuntos para armazenar os valores calculados.
+
+```{r calcularIMC}
+# Calcular IMC
+dados_2016$IMC <- dados_2016$Weight.kg / (dados_2016$Height.m ^ 2)
+dados_2017$IMC <- dados_2017$Weight.kg / (dados_2017$Height.m ^ 2)
+```
+
+Para agrupar os dois conjuntos em uma única tabela, é necessária a criação de uma coluna `Semestre` para identificar o semestre correspondente a cada observação. Essa coluna é adicionada aos dois conjuntos.
+
+```{r identificarsemestre}
+# Identificar cada semestre
+dados_2016$Semestre <- "2016-2"
+dados_2017$Semestre <- "2017-2"
+```
+
+Em seguida, são selecionadas, nos dois conjuntos, apenas as colunas relevantes para o cálculo e a comparação do IMC: `Semestre`, `Gender`, `Height.m`, `Weight.kg` e `IMC`.
+
+```{r filtrocolunas}
+# Manter apenas as colunas relevantes
+dados_2016 <- dados_2016[, c(
+"Semestre", "Gender", "Height.m", "Weight.kg", "IMC"
+)]
+
+dados_2017 <- dados_2017[, c(
+  "Semestre", "Gender", "Height.m", "Weight.kg", "IMC"
+)]
+```
+
+Posteriormente, os dois conjuntos são unidos em uma única tabela por meio da função `rbind()`, sendo o resultado armazenado na variável `dados`.
+
+```{r unirtabelas}
+# Unir as tabelas
+dados <- rbind(dados_2016, dados_2017)
+```
+
+Após o tratamento dos dados, a tabela resultante possui 53 observações e apresenta a seguinte estrutura:
+
+```{r impressao}
+head(dados)
+```
+
+Finalizada a etapa de tratamento dos dados, inicia-se a análise exploratória. Primeiramente, os dados são separados por semestre e sexo, permitindo o cálculo das estatísticas descritivas de cada grupo separadamente. Para isso, utiliza-se a função `subset()`, resultando nos conjuntos `homens_2016`, `homens_2017`, `mulheres_2016` e `mulheres_2017`.
+
+```{r separarsemestregenero}
+# Separar dados por semestre e gênero
+homens_2016 <- subset(dados, Semestre == "2016-2" & Gender == "M")
+homens_2017 <- subset(dados, Semestre == "2017-2" & Gender == "M")
+
+mulheres_2016 <- subset(dados, Semestre == "2016-2" & Gender == "F")
+mulheres_2017 <- subset(dados, Semestre == "2017-2" & Gender == "F")
+```
+
+Em seguida, é criada a tabela `estatisticas`, contendo as estatísticas descritivas de cada grupo.
+
+```{r calculoestatisticas}
+# Tabela de estatísticas descritivas
+estatisticas <- data.frame(
+  Grupo = c("M 2016-2", "M 2017-2", "F 2016-2", "F 2017-2"),
+  N = c(
+    nrow(homens_2016),
+    nrow(homens_2017),
+    nrow(mulheres_2016),
+    nrow(mulheres_2017)
+  ),
+  Media = c(
+    mean(homens_2016$IMC),
+    mean(homens_2017$IMC),
+    mean(mulheres_2016$IMC),
+    mean(mulheres_2017$IMC)
+  ),
+  Variancia = c(
+    var(homens_2016$IMC),
+    var(homens_2017$IMC),
+    var(mulheres_2016$IMC),
+    var(mulheres_2017$IMC)
+  ),
+  Desvio_Padrao = c(
+    sd(homens_2016$IMC),
+    sd(homens_2017$IMC),
+    sd(mulheres_2016$IMC),
+    sd(mulheres_2017$IMC)
+  ),
+  Mediana = c(
+    median(homens_2016$IMC),
+    median(homens_2017$IMC),
+    median(mulheres_2016$IMC),
+    median(mulheres_2017$IMC)
+  ),
+  Minimo = c(
+    min(homens_2016$IMC),
+    min(homens_2017$IMC),
+    min(mulheres_2016$IMC),
+    min(mulheres_2017$IMC)
+  ),
+  Maximo = c(
+    max(homens_2016$IMC),
+    max(homens_2017$IMC),
+    max(mulheres_2016$IMC),
+    max(mulheres_2017$IMC)
+  )
+)
+```
+
+A tabela `estatisticas` obtida é apresentada abaixo.
+
+```{r tabelaestatisticas}
+estatisticas
+```
+
+A partir das estatísticas descritivas, observa-se que, para a subpopulação masculina, o IMC médio foi de aproximadamente $24,94\ \text{kg/m}^2$ em 2016-2 e $24,29\ \text{kg/m}^2$ em 2017-2, indicando uma pequena diferença entre as médias amostrais. O desvio padrão também foi maior em 2016-2 ($4,32\ \text{kg/m}^2$) do que em 2017-2 ($3,44\ \text{kg/m}^2$).
+
+Para a subpopulação feminina, o IMC médio foi de aproximadamente $21,08\ \text{kg/m}^2$ em 2016-2 e $18,45\ \text{kg/m}^2$ em 2017-2. Os desvios padrão foram, respectivamente, $2,42\ \text{kg/m}^2$ e $1,60\ \text{kg/m}^2$. Entretanto, deve-se considerar que os tamanhos amostrais dessa subpopulação são reduzidos, com 7 observações em 2016-2 e apenas 4 em 2017-2.
+
+Por fim, foram construídos histogramas por meio da função `hist()`, separando os dados por sexo e semestre.
+
+```{r histogramas}
+###########################
+# Histogramas
+###########################
+
+par(mfrow = c(2, 2))
+
+# Homens - 2016/2
+hist(
+  homens_2016$IMC,
+  main = "Homens - 2016/2",
+  xlab = "IMC (kg/m²)",
+  ylab = "Frequência"
+)
+
+# Homens - 2017/2
+hist(
+  homens_2017$IMC,
+  main = "Homens - 2017/2",
+  xlab = "IMC (kg/m²)",
+  ylab = "Frequência"
+)
+
+# Mulheres - 2016/2
+hist(
+  mulheres_2016$IMC,
+  main = "Mulheres - 2016/2",
+  xlab = "IMC (kg/m²)",
+  ylab = "Frequência"
+)
+
+# Mulheres - 2017/2
+hist(
+  mulheres_2017$IMC,
+  main = "Mulheres - 2017/2",
+  xlab = "IMC (kg/m²)",
+  ylab = "Frequência"
+)
+
+par(mfrow = c(1, 1))
+```
+
+A partir dos histogramas da subpopulação masculina, observa-se que, no semestre de 2016-2, há maior concentração dos valores de IMC entre aproximadamente 20 e 25 kg/m². No semestre de 2017-2, os valores estão concentrados principalmente entre 22 e 25 kg/m², e a assimetria é menos evidente visualmente.
+
+Para a subpopulação feminina, os reduzidos tamanhos amostrais dificultam a avaliação da forma das distribuições por meio dos histogramas, especialmente no semestre de 2017-2. Dessa maneira, não é possível caracterizar adequadamente aspectos como simetria ou forma da distribuição apenas a partir desses gráficos.
+
+## Análise estatística
+
+### Verificação das premissas
+Para realizar o teste $t$ e comparar os IMCs dos dois semestres, é necessário avaliar as premissas de normalidade, igualdade das variâncias e independência das observações.
+
+#### Normalidade
+Busca-se avaliar se a distribuição do IMC em cada um dos quatro grupos é compatível com a distribuição Normal. A premissa de normalidade é avaliada por meio do teste de Shapiro-Wilk e da análise visual dos QQ plots [1]. O teste de Shapiro-Wilk considera como hipótese nula que os dados são provenientes de uma distribuição Normal. Dessa forma, para o nível de significância adotado de $\alpha=0,05$, um p-valor inferior a $0,05$ fornece evidências para rejeitar a hipótese de normalidade.
+
+```{r normalidade}
+##################
+# Normalidade
+##################
+
+library(car)
+
+# QQ plots - Homens
+qqPlot(
+  subset(dados, Gender == "M")$IMC,
+  groups = subset(dados, Gender == "M")$Semestre,
+  cex = 1.5,
+  pch = 16,
+  las = 1,
+  layout = c(2, 1),
+  xlab = "Quantis teóricos da Normal",
+  ylab = "IMC (kg/m²)"
+)
+
+# Shapiro-Wilk - Homens
+shapiro.test(homens_2016$IMC)
+shapiro.test(homens_2017$IMC)
+
+# QQ plots - Mulheres
+qqPlot(
+  subset(dados, Gender == "F")$IMC,
+  groups = subset(dados, Gender == "F")$Semestre,
+  cex = 1.5,
+  pch = 16,
+  las = 1,
+  layout = c(2, 1),
+  xlab = "Quantis teóricos da Normal",
+  ylab = "IMC (kg/m²)"
+)
+
+# Shapiro-Wilk - Mulheres
+shapiro.test(mulheres_2016$IMC)
+shapiro.test(mulheres_2017$IMC)
+```
+
+Os p-valores obtidos nos testes de Shapiro-Wilk foram:
+
+\begin{itemize}
+\item Homens 2016-2: p-valor = 0,1275;
+\item Homens 2017-2: p-valor = 0,6206;
+\item Mulheres 2016-2: p-valor = 0,4674;
+\item Mulheres 2017-2: p-valor = 0,03659.
+\end{itemize}
+
+Para os grupos masculinos de 2016-2 e 2017-2 e para o grupo feminino de 2016-2, os p-valores são superiores ao nível de significância de $0,05$. Portanto, não há evidências suficientes para rejeitar a hipótese de normalidade nesses grupos. Para o grupo feminino de 2017-2, por outro lado, o p-valor obtido foi inferior a $0,05$, indicando evidências para rejeitar a hipótese de normalidade.
+
+A análise visual dos QQ plots complementa os resultados do teste de Shapiro-Wilk. Nos grupos em que a normalidade não foi rejeitada, os pontos apresentam, de maneira geral, comportamento compatível com a linha de referência, embora sejam observados alguns desvios, especialmente no grupo masculino de 2016-2, que apresenta um possível valor atípico. Para o grupo feminino de 2017-2, a interpretação visual deve ser realizada com cautela devido ao tamanho amostral reduzido, de apenas quatro observações.
+
+Portanto, a premissa de normalidade não é rejeitada para os dois grupos masculinos e para o grupo feminino de 2016-2. Para o grupo feminino de 2017-2, porém, a hipótese de normalidade é rejeitada ao nível de significância de 5%.
+
+#### Igualdade das variâncias
+Busca-se verificar se as variâncias dos IMCs podem ser consideradas iguais entre os semestres, separadamente para homens e mulheres. Essa análise é utilizada para definir o uso do teste $t$ com variâncias iguais ou do teste $t$ de Welch. A avaliação é realizada por meio do teste de Fligner-Killeen e, graficamente, por meio dos stripcharts dos resíduos [3].
+
+```{r igualdadadedasvariancias}
+##############################
+# Igualdade das variâncias
+##############################
+
+# Fligner-Killeen - Homens
+fligner.test(
+  IMC ~ Semestre,
+  data = subset(dados, Gender == "M")
+)
+
+# Resíduos do IMC em relação à média do respectivo semestre - Homens
+resid_homens <- tapply(
+  X = subset(dados, Gender == "M")$IMC,
+  INDEX = subset(dados, Gender == "M")$Semestre,
+  FUN = function(x) {x - mean(x)}
+)
+
+# Stripchart - Homens
+stripchart(
+  x = resid_homens,
+  vertical = TRUE,
+  pch = 16,
+  cex = 1.5,
+  las = 1,
+  xlab = "Semestre",
+  ylab = "Resíduos (M)"
+)
+
+
+# Fligner-Killeen - Mulheres
+fligner.test(
+  IMC ~ Semestre,
+  data = subset(dados, Gender == "F")
+)
+
+# Resíduos do IMC em relação à média do respectivo semestre - Mulheres
+resid_mulheres <- tapply(
+  X = subset(dados, Gender == "F")$IMC,
+  INDEX = subset(dados, Gender == "F")$Semestre,
+  FUN = function(x) {x - mean(x)}
+)
+
+# Stripchart - Mulheres
+stripchart(
+  x = resid_mulheres,
+  vertical = TRUE,
+  pch = 16,
+  cex = 1.5,
+  las = 1,
+  xlab = "Semestre",
+  ylab = "Resíduos (F)"
+)
+```
+
+Considerando um nível de significância de $\alpha=0,05$, o teste de Fligner-Killeen não rejeitou a hipótese de igualdade das variâncias para os homens ($p=0,7735$) e para as mulheres ($p=0,3991$). Portanto, não há evidências estatísticas suficientes de que as variâncias dos IMCs sejam diferentes entre os semestres 2016-2 e 2017-2 em nenhuma das duas subpopulações.
+
+Os stripcharts dos resíduos complementam essa análise, permitindo visualizar a dispersão das observações em torno das respectivas médias. Para os homens, apesar da presença de um valor mais extremo em 2016-2, não se observa uma diferença acentuada de dispersão entre os semestres. Para as mulheres, a avaliação visual é mais limitada devido ao pequeno número de observações, especialmente em 2017-2.
+
+Dessa forma, não havendo evidências suficientes de variâncias distintas, a premissa de igualdade das variâncias será considerada razoável para ambas as comparações, com maior cautela para a subpopulação feminina.
+
+#### Independência das observações
+Busca-se verificar se as observações podem ser consideradas independentes. Como diagnóstico complementar, é utilizado o teste de Durbin-Watson sobre os resíduos [1]. Entretanto, como a ordem dos dados não corresponde necessariamente a uma sequência temporal ou de coleta, seus resultados não serão utilizados para concluir sobre a independência das observações.
+
+```{r independenciaobs}
+###################################
+# Independência das observações
+###################################
+
+# Durbin-Watson - Homens 2016-2
+durbinWatsonTest(lm(homens_2016$IMC ~ 1))
+
+# Durbin-Watson - Homens 2017-2
+durbinWatsonTest(lm(homens_2017$IMC ~ 1))
+
+# Durbin-Watson - Mulheres 2016-2
+durbinWatsonTest(lm(mulheres_2016$IMC ~ 1))
+
+# Durbin-Watson - Mulheres 2017-2
+durbinWatsonTest(lm(mulheres_2017$IMC ~ 1))
+```
+
+Considerando um nível de significância de $\alpha=0,05$, o teste de Durbin-Watson não apresentou evidências de autocorrelação serial dos resíduos em nenhum dos quatro grupos analisados. Entretanto, como não há indicação de que a ordem das observações corresponda à sequência em que os dados foram coletados, esses resultados não permitem concluir que as observações são independentes. Dessa forma, a independência será assumida para a realização dos testes.
+
+### Testes de hipóteses
+No caso do sexo masculino, as duas amostras são tratadas como independentes, a premissa de normalidade foi considerada razoável e não foram encontradas evidências estatísticas suficientes de diferenças entre as variâncias dos dois semestres. Portanto, será aplicado o teste $t$ bilateral para duas amostras independentes, assumindo variâncias iguais.
+
+No caso do sexo feminino, as duas amostras também são tratadas como independentes. O teste de Shapiro-Wilk indicou evidências estatísticas suficientes de desvio da normalidade para o grupo de 2017-2, mas, como o teste $t$ é robusto a violações leves ou moderadas de normalidade, ainda será considerado o uso do teste $t$. Ademais, como não foram encontradas evidências de diferenças entre as variâncias, será utilizado o teste $t$ bilateral para duas amostras independentes, assumindo variâncias iguais.
+
+```{r testet}
+# Homens
+teste_homens <- t.test(
+  homens_2016$IMC,
+  homens_2017$IMC,
+  alternative = "two.sided",
+  mu = 0,
+  var.equal = TRUE,
+  conf.level = 0.95
+)
+
+teste_homens
+
+# Mulheres
+teste_mulheres <- t.test(
+  mulheres_2016$IMC,
+  mulheres_2017$IMC,
+  alternative = "two.sided",
+  mu = 0,
+  var.equal = TRUE,
+  conf.level = 0.95
+)
+
+teste_mulheres
+```
+
+Para a subpopulação masculina, o teste $t$ resultou em um p-valor de $0,5923$. Como o p-valor é superior ao nível de significância adotado ($\alpha=0,05$), não há evidências estatísticas suficientes para rejeitar a hipótese nula. Portanto, não foi identificada diferença estatisticamente significativa entre os IMCs médios dos homens nos semestres 2016-2 e 2017-2.
+
+A diferença observada entre as médias amostrais foi de aproximadamente $0,65\ \text{kg/m}^2$, com média de $24,94\ \text{kg/m}^2$ em 2016-2 e $24,29\ \text{kg/m}^2$ em 2017-2. O intervalo de confiança de 95% para a diferença entre as médias populacionais foi de $[-1,78;\ 3,09]\ \text{kg/m}^2$.
+
+Para a subpopulação feminina, o teste $t$ resultou em um p-valor de $0,0856$. Como o p-valor também é superior a $\alpha=0,05$, não há evidências estatísticas suficientes para rejeitar a hipótese nula. Portanto, ao nível de significância de 5%, não foi identificada diferença estatisticamente significativa entre os IMCs médios das mulheres nos semestres 2016-2 e 2017-2.
+
+A diferença observada entre as médias amostrais foi de aproximadamente $2,64\ \text{kg/m}^2$, com média de $21,08\ \text{kg/m}^2$ em 2016-2 e $18,45\ \text{kg/m}^2$ em 2017-2. O intervalo de confiança de 95% para a diferença entre as médias populacionais foi de $[-0,45;\ 5,73]\ \text{kg/m}^2$. A grande amplitude do intervalo indica elevada incerteza na estimação da diferença, o que deve ser considerado diante dos reduzidos tamanhos amostrais da subpopulação feminina.
+
+### Potência do teste
+Conforme definido no planejamento experimental, considera-se uma diferença minimamente relevante de $\delta^*=1\ \text{kg/m}^2$. Inicialmente, busca-se avaliar a potência dos testes considerando os tamanhos amostrais disponíveis e, posteriormente, determinar o tamanho amostral necessário para atingir uma potência de 85%. 
+
+Nas funções do pacote `pwr`, é necessário informar o tamanho de efeito minimamente relevante normalizado. Como os testes $t$ foram realizados assumindo igualdade das variâncias, utiliza-se o desvio padrão combinado $s_p$ das duas amostras, calculado por [3]:
+
+$$
+s_p =
+\sqrt{
+\frac{(n_1-1)s_1^2+(n_2-1)s_2^2}
+{n_1+n_2-2}
+}, \tag{2}
+$$
+em que $n_1$ e $n_2$ representam os tamanhos das duas amostras, $s_1$ e $s_2$ seus respectivos desvios-padrão amostrais. A partir do desvio padrão combinado, o tamanho de efeito minimamente relevante normalizado $d^*$ é calculado por:
+
+$$
+d^*=\frac{\delta^*}{s_p}. \tag{3}
+$$
+
+```{r calculod}
+# Diferença minimamente relevante definida no planejamento
+delta <- 1  # kg/m²
+
+# Homens
+n_homens_2016 <- nrow(homens_2016)
+n_homens_2017 <- nrow(homens_2017)
+s_homens_2016 <- sd(homens_2016$IMC)
+s_homens_2017 <- sd(homens_2017$IMC)
+
+# Desvio padrão combinado
+sp_homens <- sqrt(
+  ((n_homens_2016 - 1) * s_homens_2016^2 +
+   (n_homens_2017 - 1) * s_homens_2017^2) /
+  (n_homens_2016 + n_homens_2017 - 2)
+)
+
+# d*
+d_homens <- delta / sp_homens
+
+# Mulheres
+n_mulheres_2016 <- nrow(mulheres_2016)
+n_mulheres_2017 <- nrow(mulheres_2017)
+s_mulheres_2016 <- sd(mulheres_2016$IMC)
+s_mulheres_2017 <- sd(mulheres_2017$IMC)
+
+# Desvio padrão combinado
+sp_mulheres <- sqrt(
+  ((n_mulheres_2016 - 1) * s_mulheres_2016^2 +
+   (n_mulheres_2017 - 1) * s_mulheres_2017^2) /
+  (n_mulheres_2016 + n_mulheres_2017 - 2)
+)
+
+# d*
+d_mulheres <- delta / sp_mulheres
+```
+
+A partir dos valores calculados, são analisadas as potências dos testes.
+
+```{r potencia1}
+#####################################################
+# Potência com os tamanhos amostrais disponíveis
+#####################################################
+
+library(pwr)
+
+# Homens
+potencia_homens <- pwr.t.test(
+  n = n_homens_2016,
+  d = d_homens,
+  sig.level = 0.05,
+  type = "two.sample",
+  alternative = "two.sided"
+)
+
+potencia_homens
+
+# Mulheres
+potencia_mulheres <- pwr.t2n.test(
+  n1 = n_mulheres_2016,
+  n2 = n_mulheres_2017,
+  d = d_mulheres,
+  sig.level = 0.05,
+  alternative = "two.sided"
+)
+
+potencia_mulheres
+```
+
+Para a subpopulação masculina, considerando tamanhos amostrais disponíveis de 21 observações em cada semestre, a potência estimada do teste foi de aproximadamente 12,8%. Para a subpopulação feminina, considerando 7 observações em 2016-2 e 4 observações em 2017-2, a potência estimada foi de aproximadamente 10,1%. Em ambos os casos, considerou-se o respectivo valor calculado para $d^*$ e adotou-se $\alpha=0,05$. Portanto, nesse caso, as probabilidades associadas ao erro do tipo II são de aproximadamente 87,2% para os homens e 89,9% para as mulheres.
+
+Dessa forma, os tamanhos amostrais disponíveis apresentam baixa potência para detectar uma diferença de $1\ \text{kg/m}^2$ entre os IMCs médios dos semestres, tanto para os homens quanto para as mulheres. Isso indica uma capacidade limitada dos testes de detectar uma diferença dessa magnitude, caso ela exista. 
+
+```{r potencia2}
+#######################################################
+# Tamanho amostral necessário para potência de 85%
+#######################################################
+
+# Homens
+n_necessario_homens <- pwr.t.test(
+  n = NULL,
+  d = d_homens,
+  sig.level = 0.05,
+  power = 0.85,
+  type = "two.sample",
+  alternative = "two.sided"
+)
+
+n_necessario_homens
+
+# Mulheres
+n_necessario_mulheres <- pwr.t.test(
+  n = NULL,
+  d = d_mulheres,
+  sig.level = 0.05,
+  power = 0.85,
+  type = "two.sample",
+  alternative = "two.sided"
+)
+
+n_necessario_mulheres
+```
+
+Para atingir uma potência de 85%, considerando $\alpha=0,05$ e os respectivos valores calculados para $d^*$, seriam necessárias aproximadamente 275 observações por semestre para a subpopulação masculina e 87 observações por semestre para a subpopulação feminina. Esses valores são consideravelmente superiores aos tamanhos amostrais disponíveis no estudo, o que está de acordo com as baixas potências estimadas anteriormente.
+
+A baixa potência é justificada pela combinação de tamanhos amostrais pequenos e pelo fato de que uma diferença de $1\ \text{kg/m}^2$ é pequena quando comparada à variabilidade dos dados de IMC. Dessa maneira, torna-se difícil distinguir estatisticamente uma diferença dessa magnitude da própria variabilidade dos dados. Por se tratar de indivíduos com perfis diferentes, é natural que exista variabilidade nos IMCs.
+
+## Conclusões e recomendações
+O presente estudo buscou investigar se houve alteração no IMC médio dos alunos do Programa de Pós-Graduação em Engenharia Elétrica da UFMG entre os semestres 2016-2 e 2017-2, considerando separadamente as subpopulações masculina e feminina.
+
+Para ambas as subpopulações, não foram encontradas evidências estatísticas suficientes para afirmar que houve diferença no IMC médio entre os dois semestres, considerando um nível de significância de 5%. Contudo, a análise de potência do teste indicou baixa capacidade de detectar a diferença de $1\ \text{kg/m}^2$ considerada minimamente relevante neste estudo. A potência estimada foi de aproximadamente 12,8% para a subpopulação masculina e 10,1% para a feminina. Dessa forma, a ausência de diferenças estatisticamente significativas deve ser interpretada com cautela, uma vez que diferenças relevantes podem não ter sido detectadas devido aos tamanhos amostrais disponíveis e à variabilidade dos dados.
+
+Essa limitação é particularmente importante para a subpopulação feminina, que conta com apenas 7 observações em 2016-2 e 4 em 2017-2. Além disso, o intervalo de confiança para a diferença entre as médias apresenta grande amplitude, indicando elevada incerteza na estimação dessa diferença.
+
+Como principal melhoria para estudos futuros, recomenda-se aumentar o tamanho amostral, especialmente para a subpopulação feminina. A análise realizada indicou que, para uma potência de 85%, considerando a diferença minimamente relevante estabelecida e as variabilidades estimadas neste estudo, seriam necessárias aproximadamente 275 observações por semestre para os homens e 87 por semestre para as mulheres. Todavia, considerando o número de alunos do programa, pode não ser viável atingir esses tamanhos amostrais.
+
+Também se recomenda padronizar e documentar o processo de coleta de peso e altura, além de buscar maior equilíbrio entre os tamanhos dos grupos. Ademais, poderia ser considerada a realização de uma análise pareada, permitindo avaliar diretamente a variação do IMC dos mesmos indivíduos ao longo do tempo.
+
+### Contribuições dos membros da equipe
+- **Bernardo de Souza Silva - Relator e Analista:** responsável pela implementação dos códigos, realização das análises estatísticas, interpretação dos resultados e revisão geral do relatório.
+
+- **Fabio Emmanuel Ferreira Xavier - Verificador e Analista:** responsável pela revisão dos códigos, contribuição na redação da seção de análise estatística e esclarecimento de dúvidas relacionadas ao estudo junto ao professor. Sua participação nas demais etapas foi limitada por motivos de saúde.
+
+- **Isabela Costa Trivellato - Verificadora e Analista:** responsável pela revisão dos códigos, realização da análise exploratória dos dados e redação do relatório.
+
+### Declaração sobre o uso de inteligência artificial generativa e tecnologias assistidas por IA na elaboração do relatório
+Durante a elaboração deste trabalho, os autores utilizaram o ChatGPT (OpenAI) para auxiliar na revisão e correção dos códigos e do texto, além de identificar possíveis lacunas conceituais. Após o uso da ferramenta, os autores revisaram e editaram o conteúdo conforme necessário e assumem total responsabilidade pelo conteúdo apresentado neste relatório.
+
+## Referências
+
+[1] BESSANI, Michel. Planejamento e Análise de Experimentos: Inferência Estatística. Belo Horizonte: Universidade Federal de Minas Gerais, Programa de Pós-Graduação em Engenharia Elétrica, 2026. Notas de aula.
+
+[2] N. A. Augusto. Incidência de aumento e redução do índice de massa corporal em homens e mulheres de meia-idade: seguimento de quatro anos em município de médio porte. Dissertação (Mestrado em Saúde Coletiva) - Universidade Estadual de Londrina, Londrina, 2020.
+
+[3] BESSANI, Michel. Planejamento e Análise de Experimentos: Comparações Simples e Pareadas. Belo Horizonte: Universidade Federal de Minas Gerais, Programa de Pós-Graduação em Engenharia Elétrica, 2026. Notas de aula.

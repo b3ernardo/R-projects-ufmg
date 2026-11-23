@@ -1,0 +1,632 @@
+---
+title: 'Estudo de caso 02: Avaliação e comparação do retorno médio de ações'
+author: "Bernardo de Souza Silva, Fabio Emmanuel Ferreira Xavier e Isabela Costa Trivellato"
+date: "05 de outubro de 2026"
+lang: pt-BR
+output:
+  pdf_document:
+    fig_caption: yes
+  html_document:
+    df_print: paged
+---
+
+```{r setup,results='hide',warning=FALSE,echo=FALSE}
+# A few initial definitions just to make sure all required packages are installed. Change as needed.
+# NOTE: It may echo some weird messages to the PDF on the first compile (package installation messages). Run twice and the problem will (hopefully) go away.
+if (!require(ggplot2, quietly = TRUE)){
+      install.packages("ggplot2")
+      }
+if (!require(devtools, quietly = TRUE)){
+      install.packages("devtools")
+      }
+ if (!require(broom, quietly = TRUE)){
+       devtools::install_github("dgrtwo/broom")
+      }
+if (!require(GGally, quietly = TRUE)){
+      install.packages("GGally")
+}
+if (!require(car, quietly = TRUE)){
+      install.packages("car")
+      }
+if (!require(pwr, quietly = TRUE)){
+      install.packages("pwr")
+      }
+```
+## Resumo
+
+Este estudo investiga em qual ação da bolsa de valores, dentre cinco ações candidatas, um investidor deve aplicar seu montante financeiro disponível, visando maior rentabilidade para o próximo mês. A análise foi realizada a partir dos preços de fechamento mensais das ações, utilizando os retornos relativos calculados para 35 meses. Para comparar os retornos médios mensais, foi aplicada a análise de variância (ANOVA), seguida pelo procedimento de comparações múltiplas de Tukey. Os resultados indicaram diferenças estatisticamente significativas entre os retornos médios das ações, destacando as Ações 1 e 5 como as alternativas com maiores retornos médios. Não foi identificada diferença estatisticamente significativa entre essas duas ações. Dessa forma, foram analisadas evidências descritivas adicionais relacionadas ao retorno, à volatilidade e às perdas observadas. Considerando conjuntamente os resultados obtidos, a Ação 5 apresentou os indicadores mais favoráveis entre as alternativas analisadas, sendo recomendada para a aplicação do capital, considerando as limitações inerentes ao uso de dados históricos. 
+
+## Descrição do problema
+No presente estudo, deseja-se comparar o retorno médio mensal de cinco ações da bolsa de valores a partir de seus preços de fechamento nos últimos 36 meses, visando identificar a alternativa com maior potencial de rentabilidade para o próximo mês. O objetivo é verificar se existem diferenças entre os retornos médios mensais das ações e identificar aquelas que apresentam os maiores retornos. Caso mais de uma ação se destaque, serão analisadas evidências adicionais que possam auxiliar na escolha de uma única ação. Dessa forma, busca-se fornecer ao investidor uma recomendação, fundamentada em evidências estatísticas, para a aplicação integral de seu capital em uma das cinco ações candidatas.
+
+## Planejamento experimental
+
+O estudo possui um único fator, a ação, com $a = 5$ níveis (as cinco ações diferentes) e $n = 35$ observações de retorno mensal para cada nível. A variável de resposta $y$ é o retorno mensal relativo de cada ação, permitindo a comparação entre ações com diferentes preços.
+
+O modelo estatístico de efeitos considerado para os dados é dado por:
+
+$$
+y_{ij} = \mu + \tau_i + \epsilon_{ij},
+\quad
+\begin{cases}
+i = 1, \dots, 5 \\
+j = 1, \dots, 35
+\end{cases},
+\quad
+\epsilon_{ij} \overset{iid}{\sim} N(0,\sigma^2)
+$$
+
+Nesse modelo, $y_{ij}$ representa o retorno mensal da ação $i$ no mês $j$, $\mu$ representa a média global dos retornos, $\tau_i$ representa o efeito da i-ésima ação em relação à média global e $\epsilon_{ij}$ representa o erro aleatório associado à observação. Para a aplicação do modelo, serão avaliadas as premissas de independência, normalidade e variância constante dos resíduos.
+
+Com o interesse de verificar se existem diferenças entre os retornos médios mensais das ações, são definidas as seguintes hipóteses:
+
+$$
+\begin{cases}
+H_0: \tau_i = 0, \quad \forall\, i \in \{1,2,\dots,5\} \\
+H_1: \exists\, i \text{ tal que } \tau_i \neq 0
+\end{cases}
+$$
+
+A hipótese nula $H_0$ estabelece que todos os efeitos das ações são nulos, o que equivale a considerar iguais os retornos médios mensais das cinco ações. A hipótese alternativa $H_1$ estabelece que pelo menos um dos efeitos é diferente de zero, ou seja, que nem todos os retornos médios mensais são iguais. As hipóteses serão testadas por meio da ANOVA de um fator, utilizando a estatística $F$ para comparar a variabilidade associada ao fator ação com a variabilidade residual.
+
+O nível de significância adotado para os testes é de $\alpha = 0{,}05$. Esse nível corresponde à probabilidade de rejeitar a hipótese nula quando ela é verdadeira, caracterizando o erro do tipo I [1]. Caso o p-valor obtido na ANOVA seja inferior a $\alpha = 0{,}05$, a hipótese nula $H_0$ será rejeitada. Nesse caso, será utilizado o procedimento de comparações múltiplas de Tukey. Como não existe uma ação previamente definida como referência, serão realizadas comparações entre todos os pares de ações para identificar quais apresentam diferenças estatisticamente significativas em seus retornos médios mensais.
+
+Para a análise de potência, caso mais de uma ação se destaque e seja necessária uma comparação entre as ações candidatas, será considerada uma diferença minimamente relevante de $\delta^* = 0{,}005$, correspondente a 0,5 ponto percentual (50 pontos-base) no retorno médio mensal entre duas ações. Esse valor foi adotado com base na literatura da área de finanças, na qual diferenças de retorno dessa ordem são consideradas economicamente relevantes [2, 3]. Nesse caso, será avaliada a potência associada ao tamanho amostral disponível para detectar uma diferença de pelo menos $\delta^*$ entre os retornos médios das ações candidatas e, posteriormente, será determinado o tamanho amostral necessário para atingir uma potência de 80% ($\beta = 0{,}20$).
+
+### Descrição da coleta de dados
+
+Os dados fornecidos estão armazenados no arquivo `DadosAcoesGrupoG.csv`, que possui 36 linhas e 5 colunas, separadas por vírgulas, e não possui cabeçalho. Cada linha representa um mês, sendo os dados ordenados do mês mais recente para o mais antigo, enquanto cada coluna representa uma das cinco ações.
+
+Os dados correspondem aos preços de fechamento mensais das ações, a partir dos quais é calculado o retorno mensal, variável de interesse deste estudo. O cálculo utiliza os preços de fechamento de dois meses consecutivos para determinar a variação relativa do preço de cada ação. Como simplificação, considera-se que o preço de abertura de determinado mês é igual ao preço de fechamento do mês anterior. Além disso, como as ações podem ser adquiridas de forma fracionária, todo o capital disponível pode ser investido, independentemente do preço unitário da ação. Dessa forma, a comparação é realizada com base nos retornos relativos.
+
+As 36 observações de preços de fechamento resultam em 35 retornos mensais para cada ação, totalizando 175 observações de retorno. Os dados são históricos e observacionais, estão armazenados em ordem cronológica e as cinco ações são observadas nos mesmos meses. Não são fornecidas informações sobre a identificação das ações nem sobre o período específico em que os dados foram coletados.
+
+## Análise exploratória dos dados
+
+A leitura dos dados é realizada por meio da função `read.csv`, e as colunas são nomeadas de acordo com as cinco ações. Em seguida, os dados são inicialmente inspecionados com as funções `dim`, `head` e `summary`, que apresentam, respectivamente, as dimensões do conjunto de dados, as seis primeiras linhas e um resumo estatístico de cada coluna. Esse resumo contém os valores mínimo (`Min.`) e máximo (`Max.`), o primeiro e o terceiro quartis, a mediana e a média dos preços.
+
+```{r leitura}
+# Leitura dos dados
+acoes <- read.csv("DadosAcoesGrupoG.csv", header = FALSE)
+
+# Identificação das cinco ações
+colnames(acoes) <- c("Acao1", "Acao2", "Acao3", "Acao4", "Acao5")
+
+# Inspeção inicial
+dim(acoes)
+head(acoes)
+summary(acoes)
+```
+
+Observa-se que as cinco ações apresentam preços em diferentes escalas. Como o interesse do estudo está no ganho proporcionado pelo investimento e todo o capital disponível pode ser aplicado independentemente do preço unitário da ação, a análise será realizada a partir dos retornos relativos, e não diretamente dos preços.
+
+Em seguida, calcula-se o retorno mensal de cada ação por meio da equação:
+
+$$
+R_j = \frac{P_j}{P_{j+1}} - 1 \tag{1}
+$$
+
+Nessa equação, $P_j$ representa o preço de fechamento da ação no mês correspondente à linha $j$, enquanto $P_{j+1}$ representa seu preço de fechamento no mês imediatamente anterior. Como os dados estão ordenados do mês mais recente para o mais antigo, o preço da linha $j+1$ corresponde ao período anterior ao da linha $j$. Dessa forma, $R_j$ representa a variação relativa do preço da ação entre dois meses consecutivos. As 36 observações de preços de cada ação resultam, portanto, em 35 retornos mensais.
+
+O código abaixo calcula os retornos das cinco ações e armazena os resultados na variável `retornos`.
+
+```{r calcularRetornos}
+# Calcula os retornos mensais das cinco ações
+retornos <- acoes[-36, ] / acoes[-1, ] - 1
+
+# Mantém os nomes das ações
+colnames(retornos) <- colnames(acoes)
+
+# Inspeção dos retornos
+dim(retornos)
+head(retornos)
+```
+
+Após o cálculo dos retornos, é realizado um resumo estatístico por meio da função `summary`. Também são calculados o retorno médio mensal e o desvio-padrão amostral dos retornos de cada ação.
+
+```{r resumoRetornos}
+# Resumo dos retornos mensais
+summary(retornos)
+
+# Média dos retornos de cada ação
+colMeans(retornos)
+
+# Desvio-padrão dos retornos de cada ação
+sapply(retornos, sd)
+```
+
+A Ação 5 apresentou o maior retorno médio mensal, de aproximadamente 1,757%, seguida pela Ação 1, com aproximadamente 1,457%. A diferença entre os retornos médios dessas duas ações foi de aproximadamente 0,3 ponto percentual por mês. A Ação 2 apresentou retorno médio mensal de aproximadamente 0,502%, enquanto as Ações 3 e 4 apresentaram retornos médios negativos, de aproximadamente -0,627% e -0,891%, respectivamente.
+
+Posteriormente, são construídos boxplots dos retornos das cinco ações, utilizando a função `boxplot`. Os retornos são apresentados em porcentagem para facilitar a interpretação, e uma linha horizontal em zero é adicionada como referência para distinguir retornos positivos e negativos.
+
+```{r Boxplots, fig.cap="Distribuição dos retornos mensais das cinco ações."}
+# Boxplot dos retornos mensais das cinco ações
+boxplot(retornos * 100,
+        xlab = "Ação",
+        ylab = "Retorno mensal (%)",
+        las  = 1)
+
+# Linha de referência para retorno igual a zero
+abline(h = 0, lty = 2)
+```
+
+Observa-se que as caixas das Ações 1 e 5 estão inteiramente acima da linha de retorno igual a zero, enquanto as caixas das Ações 3 e 4 estão predominantemente abaixo dessa linha. A caixa da Ação 2 encontra-se predominantemente acima de zero. Entre as cinco ações, a Ação 5 apresenta a maior mediana, reforçando o comportamento favorável observado nas estatísticas descritivas.
+
+As alturas das caixas são semelhantes, sugerindo dispersões centrais de magnitudes próximas. Na Ação 1, o boxplot identifica três possíveis valores atípicos, sendo dois associados a retornos negativos e um a um retorno positivo elevado. Nas demais ações, não são observados valores classificados como atípicos pelo boxplot. Esses valores da Ação 1 não devem ser descartados apenas por serem identificados como atípicos, pois podem representar variações reais do retorno da ação durante o período analisado.
+
+Por fim, para explorar a estrutura temporal dos dados, são representados graficamente os retornos mensais das cinco ações ao longo do período analisado. A ordem das linhas é invertida para que o gráfico seja apresentado do período mais antigo para o mais recente. A função `matplot` é utilizada para representar simultaneamente os retornos das cinco ações.
+
+```{r GraficoTemporal, fig.cap="Retornos mensais das cinco ações ao longo do período analisado."}
+# Inverte a ordem para apresentar do período mais antigo ao mais recente
+retornos_tempo <- retornos[nrow(retornos):1, ]
+
+# Gráfico temporal dos retornos das cinco ações
+matplot(1:nrow(retornos_tempo),
+        retornos_tempo * 100,
+        type = "l",
+        lty  = 1,
+        lwd  = 2,
+        xlab = "Período (do mais antigo ao mais recente)",
+        ylab = "Retorno mensal (%)")
+
+# Linha de referência em 0%
+abline(h = 0, lty = 2)
+
+# Identificação das ações
+legend("topright",
+       legend = colnames(retornos_tempo),
+       lty    = 1,
+       lwd    = 2,
+       col    = 1:5,
+       cex    = 0.8)
+```
+
+A partir da inspeção visual do gráfico, não se observa uma tendência temporal clara de crescimento ou queda dos retornos ao longo do período analisado. As Ações 1 e 5 apresentam retornos predominantemente positivos, enquanto as Ações 3 e 4 apresentam maior ocorrência de retornos negativos, comportamento coerente com as estatísticas descritivas apresentadas anteriormente.
+
+## Análise estatística
+
+### Ajuste do modelo
+
+A análise estatística é iniciada com o ajuste do modelo ANOVA de um fator. A função `stack()` transforma a tabela de retornos, inicialmente organizada em 5 colunas, em uma tabela no formato longo, contendo 175 linhas e duas colunas: o retorno mensal e a ação correspondente.
+
+O comando `aov(Retorno ~ Acao, data = dados_anova)` ajusta o modelo considerando a ação como fator e o retorno mensal como variável de resposta. A partir desse ajuste, são obtidos os valores ajustados e os resíduos, além das somas de quadrados, médias quadráticas, estatística $F$ e p-valor utilizados na ANOVA.
+
+```{r ajusteModelo}
+# ==========================================
+# ANOVA de um fator
+# ==========================================
+
+# Conversão dos dados para o formato longo
+dados_anova <- stack(retornos)
+
+# Renomeando as colunas
+names(dados_anova) <- c("Retorno", "Acao")
+
+# Verificando a estrutura
+head(dados_anova)
+str(dados_anova)
+
+# Ajuste do modelo ANOVA de um fator
+modelo_anova <- aov(Retorno ~ Acao, data = dados_anova)
+
+# Tabela ANOVA
+summary.aov(modelo_anova)
+```
+
+A ANOVA resultou em uma estatística $F=43{,}24$ e um p-valor inferior a $2 \times 10^{-16}$. Como o p-valor é inferior ao nível de significância adotado ($\alpha=0{,}05$), rejeita-se a hipótese nula $H_0$. Portanto, existem evidências estatísticas de que nem todos os retornos médios mensais das cinco ações são iguais.
+
+Entretanto, a ANOVA não permite identificar quais ações apresentam diferenças entre seus retornos médios. Dessa forma, será aplicado o procedimento de comparações múltiplas de Tukey, comparando todos os pares de ações para identificar quais apresentam diferenças estatisticamente significativas e quais se destacam em relação ao retorno médio mensal.
+
+### Verificação das premissas
+
+A validade das conclusões obtidas pela ANOVA depende da adequação das premissas do modelo. Considerando que os resíduos são assumidos independentes e identicamente distribuídos, com $\epsilon_{ij} \overset{iid}{\sim} N(0,\sigma^2)$, serão avaliadas as premissas de normalidade dos resíduos, homocedasticidade e independência das observações.
+
+#### Normalidade
+
+A premissa de normalidade estabelece que os resíduos do modelo seguem uma distribuição normal. A ANOVA é relativamente robusta a violações moderadas dessa premissa, desde que as demais premissas sejam razoavelmente atendidas ou que o tamanho amostral seja suficientemente grande [4].
+
+A normalidade dos resíduos será avaliada pelo teste de Shapiro-Wilk, considerando as seguintes hipóteses:
+
+$$
+\begin{cases}
+H_0: \text{os resíduos seguem uma distribuição normal} \\
+H_1: \text{os resíduos não seguem uma distribuição normal}
+\end{cases}
+$$
+
+O nível de significância adotado para esse teste é de $\alpha=0{,}05$. Além do teste de Shapiro-Wilk, será realizada uma análise gráfica da normalidade dos resíduos utilizando o gráfico Q-Q.
+
+```{r normalidade, fig.cap="Gráfico Q-Q dos resíduos do modelo ANOVA."}
+# ==========================================
+# Normalidade dos resíduos
+# ==========================================
+
+# Resíduos do modelo
+modelo_anova$residuals
+
+# Teste de Shapiro-Wilk
+shapiro.test(modelo_anova$residuals)
+
+# Gráfico Q-Q dos resíduos
+qqnorm(modelo_anova$residuals,
+       pch = 16,
+       cex = 1.5,
+       las = 1)
+
+# Linha de referência da distribuição normal
+qqline(modelo_anova$residuals,
+       lwd = 2)
+```
+
+O p-valor obtido no teste de Shapiro-Wilk foi de 0,5423. Como esse valor é superior ao nível de significância $\alpha=0{,}05$, não se rejeita $H_0$. Portanto, não há evidências estatísticas suficientes para afirmar que os resíduos não seguem uma distribuição normal.
+
+Além disso, o gráfico Q-Q apresenta os resíduos próximos à reta de referência da distribuição normal, com apenas pequenos desvios nas extremidades. A análise visual, portanto, é compatível com o resultado obtido pelo teste de Shapiro-Wilk.
+
+#### Homocedasticidade
+
+A premissa de homocedasticidade estabelece que a variância dos resíduos é a mesma entre os níveis do fator, ou seja, $\sigma_1^2=\sigma_2^2=\cdots=\sigma_5^2$. A ANOVA é relativamente robusta a violações moderadas dessa premissa quando as observações são balanceadas [4]. Neste estudo, todas as ações possuem o mesmo número de observações, com $n=35$ para cada nível do fator.
+
+A homocedasticidade será avaliada pelo teste de Fligner-Killeen, considerando as seguintes hipóteses:
+
+$$
+\begin{cases}
+H_0: \sigma_1^2 = \sigma_2^2 = \sigma_3^2 = \sigma_4^2 = \sigma_5^2 \\
+H_1: \text{pelo menos uma variância difere das demais}
+\end{cases}
+$$
+
+O nível de significância adotado para esse teste é de $\alpha=0{,}05$. Além do teste de Fligner-Killeen, será realizada uma análise gráfica dos resíduos em função dos valores ajustados pelo modelo.
+
+```{r homocedasticidade, fig.cap="Resíduos do modelo ANOVA em função dos valores ajustados."}
+# ==========================================
+# Homocedasticidade
+# ==========================================
+
+# Teste de Fligner-Killeen
+fligner.test(Retorno ~ Acao, data = dados_anova)
+
+# Resíduos x valores ajustados
+plot(x = modelo_anova$fitted.values,
+     y = modelo_anova$residuals,
+     pch = 16,
+     cex = 1.5,
+     las = 1,
+     xlab = "Valores ajustados",
+     ylab = "Resíduos")
+
+# Linha de referência em zero
+abline(h = 0, lty = 2)
+
+grid()
+```
+
+O p-valor obtido no teste de Fligner-Killeen foi de 0,4706. Como esse valor é superior ao nível de significância $\alpha=0{,}05$, não se rejeita $H_0$. Portanto, não há evidências estatísticas suficientes para afirmar que as variâncias diferem entre as cinco ações.
+
+Além disso, o gráfico dos resíduos em função dos valores ajustados não apresenta alteração evidente da dispersão entre os níveis do fator. Dessa forma, os resultados do teste e da análise gráfica não indicam evidências de violação da premissa de homocedasticidade.
+
+#### Independência
+
+A premissa de independência deve ser considerada nas etapas de planejamento, coleta e análise dos dados, levando em conta possíveis fatores que possam gerar dependência entre as observações [4]. Neste estudo, os dados são históricos e observacionais, e os retornos de cada ação correspondem a meses consecutivos.
+
+Como análise complementar da premissa de independência, será utilizado o teste de Durbin-Watson sobre os resíduos do modelo, uma vez que as observações possuem uma ordem temporal conhecida. O teste permite investigar a presença de autocorrelação serial de primeira ordem, verificando se os resíduos associados a meses consecutivos apresentam dependência linear. O teste será aplicado separadamente para cada ação, considerando as seguintes hipóteses:
+
+$$
+\begin{cases}
+H_0: \rho_i = 0 \\
+H_1: \rho_i \neq 0
+\end{cases},
+\quad i=1,\dots,5
+$$
+
+em que $\rho_i$ representa a autocorrelação serial de primeira ordem dos resíduos da ação $i$. O nível de significância adotado para esse teste é de $\alpha=0{,}05$.
+
+```{r DurbinWatson}
+library(car)
+
+# Resíduos do modelo ANOVA
+residuos <- residuals(modelo_anova)
+
+# Identificação da ação correspondente a cada resíduo
+acoes_residuos <- dados_anova$Acao
+
+# Durbin-Watson aplicado separadamente aos resíduos de cada ação
+for (acao in levels(acoes_residuos)) {
+  cat("\n", acao, "\n")
+  residuos_acao <- residuos[acoes_residuos == acao]
+  print(durbinWatsonTest(lm(residuos_acao ~ 1)))
+}
+```
+
+Os p-valores obtidos no teste de Durbin-Watson foram superiores ao nível de significância $\alpha=0{,}05$ para todas as ações. Portanto, não se rejeita $H_0$ em nenhum dos cinco casos, indicando que não foram encontradas evidências estatísticas de autocorrelação serial de primeira ordem nos resíduos das ações.
+
+Considerando que a ordem temporal das observações foi preservada na análise e que o teste de Durbin-Watson não apresentou evidências de autocorrelação serial de primeira ordem, não foram identificadas evidências de violação da premissa de independência associadas à dependência temporal de primeira ordem.
+
+De forma geral, as análises realizadas não indicaram evidências de violações das premissas de normalidade e homocedasticidade, nem evidências de autocorrelação serial de primeira ordem nos resíduos de cada ação. Dessa forma, não foram identificadas violações das premissas avaliadas que inviabilizassem a aplicação da ANOVA aos dados deste estudo.
+
+### Comparações múltiplas pelo método de Tukey
+
+A ANOVA resultou na rejeição de $H_0$, indicando que existem evidências estatísticas de que nem todos os retornos médios mensais das cinco ações são iguais. Entretanto, a ANOVA não permite identificar quais ações apresentam diferenças entre seus retornos médios. Por isso, serão realizadas comparações múltiplas todos contra todos pelo método de Tukey.
+
+Como existem $a=5$ níveis do fator, são realizadas
+
+$$
+K = \frac{a(a-1)}{2}
+= \frac{5(5-1)}{2}
+= 10 \tag{2}
+$$
+
+comparações entre pares de ações. Para cada par de ações $i$ e $j$, são consideradas as seguintes hipóteses:
+
+$$
+\begin{cases}
+H_0: \mu_i-\mu_j=0 \\
+H_1: \mu_i-\mu_j\neq0
+\end{cases}
+$$
+
+Para auxiliar na interpretação gráfica dos resultados, serão construídos intervalos de confiança simultâneos de 95% para as diferenças entre os retornos médios. Caso o intervalo de confiança de uma comparação contenha zero, não há evidências estatísticas de diferença entre os retornos médios daquele par de ações. Caso o intervalo não contenha zero, a diferença é considerada estatisticamente significativa.
+
+```{r Tukey, fig.cap="Intervalos de confiança simultâneos de 95% para as diferenças entre os retornos médios das ações pelo método de Tukey."}
+# ==========================================
+# Comparações múltiplas pelo método de Tukey
+# Situação: todos contra todos
+# ==========================================
+
+if (!requireNamespace("multcomp", quietly = TRUE)) {
+  install.packages("multcomp")
+}
+
+library(multcomp)
+
+# Comparações de Tukey entre as cinco ações
+mc1 <- glht(modelo_anova,
+            linfct = mcp(Acao = "Tukey"))
+
+# Intervalos de confiança simultâneos de 95%
+mc1_CI <- confint(mc1, level = 0.95)
+
+# Nomes das comparações
+nomes <- c(
+  "A2 - A1",
+  "A3 - A1",
+  "A4 - A1",
+  "A5 - A1",
+  "A3 - A2",
+  "A4 - A2",
+  "A5 - A2",
+  "A4 - A3",
+  "A5 - A3",
+  "A5 - A4"
+)
+
+rownames(mc1_CI$confint) <- nomes
+
+# Representação gráfica dos intervalos de confiança
+plot(mc1_CI,
+     xlab = "Diferença no retorno médio mensal",
+     cex.axis = 1.1,
+     cex = 1.5)
+
+# Resultados das comparações
+summary(mc1)
+```
+
+O procedimento de comparações múltiplas de Tukey identificou diferenças estatisticamente significativas em 8 das 10 comparações realizadas.
+
+| Comparação | Diferença estimada | p-valor ajustado | Conclusão |
+|---|---:|---:|---|
+| A2 - A1 | -0,009550 | 0,002484 | Significativa |
+| A3 - A1 | -0,020844 | < 0,0001 | Significativa |
+| A4 - A1 | -0,023483 | < 0,0001 | Significativa |
+| A5 - A1 | +0,002998 | 0,768741 | Não significativa |
+| A3 - A2 | -0,011294 | 0,000169 | Significativa |
+| A4 - A2 | -0,013932 | < 0,0001 | Significativa |
+| A5 - A2 | +0,012549 | < 0,0001 | Significativa |
+| A4 - A3 | -0,002639 | 0,841530 | Não significativa |
+| A5 - A3 | +0,023842 | < 0,0001 | Significativa |
+| A5 - A4 | +0,026481 | < 0,0001 | Significativa |
+
+Os resultados mostram que as Ações 1 e 5 apresentam retornos médios significativamente superiores aos das Ações 2, 3 e 4. Entretanto, não foi identificada diferença estatisticamente significativa entre as Ações 1 e 5 ($p=0{,}7687$), resultado também observado no intervalo de confiança simultâneo, que contém o valor zero. Da mesma forma, não foi identificada diferença estatisticamente significativa entre as Ações 3 e 4 ($p=0{,}8415$).
+
+Portanto, as Ações 1 e 5 se destacam como as alternativas com os maiores retornos médios mensais. A diferença estimada entre os retornos médios das Ações 5 e 1 foi de aproximadamente $0{,}003$, correspondente a $0{,}30$ ponto percentual ao mês. Considerando exclusivamente os retornos médios mensais e as comparações múltiplas de Tukey, não há evidências estatísticas suficientes para distinguir as Ações 1 e 5. Como ambas se destacaram em relação às demais ações, serão consideradas evidências adicionais para auxiliar na escolha de uma única ação para o investimento.
+
+### Comparação entre os retornos médios de A1 e A5
+
+Complementando a análise, será realizado o teste $t$ para comparar os retornos médios mensais das Ações 1 e 5. Assim, são consideradas as seguintes hipóteses:
+
+$$
+\begin{cases}
+H_0: \mu_1-\mu_5=0 \\
+H_1: \mu_1-\mu_5\neq0
+\end{cases}
+$$
+
+Será adotado um nível de significância de $\alpha=0{,}05$. As premissas de normalidade, homocedasticidade e independência, necessárias para a aplicação do teste $t$, foram avaliadas anteriormente na análise do modelo ANOVA, não tendo sido encontradas evidências de violação. Dessa forma, será utilizado o teste $t$ para duas amostras independentes considerando variâncias iguais.
+
+```{r teste_t_A1_A5}
+# ==========================================
+# Comparação entre A1 e A5
+# ==========================================
+
+teste_t <- t.test(
+  retornos$Acao1,
+  retornos$Acao5,
+  alternative = "two.sided",
+  var.equal = TRUE,
+  conf.level = 0.95
+)
+
+teste_t
+```
+
+O teste $t$ não apresentou evidências estatísticas suficientes de diferença entre os retornos médios mensais das Ações 1 e 5 ($p=0{,}2308$). Como o p-valor é superior ao nível de significância $\alpha=0{,}05$, não se rejeita $H_0$. Portanto, não há evidências estatísticas suficientes para afirmar que os retornos médios mensais das duas ações são diferentes.
+
+Esse resultado é coerente com a comparação realizada anteriormente pelo método de Tukey, que também não identificou diferença estatisticamente significativa entre as Ações 1 e 5.
+
+### Potência do teste
+
+A análise de potência visa avaliar a capacidade do teste de detectar uma diferença considerada relevante entre essas ações. Conforme definido no planejamento, será considerada uma diferença minimamente relevante de $\delta^*=0{,}005$, correspondente a 0,5 ponto percentual no retorno médio mensal. Adota-se um nível de significância de $\alpha=0{,}05$ e uma potência desejada de $1-\beta=0{,}80$.
+
+Para a análise de potência, a diferença minimamente relevante será padronizada pelo desvio-padrão combinado das duas amostras. O desvio-padrão combinado $s_p$ é calculado por:
+
+$$
+s_p =
+\sqrt{
+\frac{(n_1-1)s_1^2+(n_5-1)s_5^2}
+{n_1+n_5-2}
+} \tag{3}
+$$
+
+$n_1$ e $n_5$ representam os tamanhos amostrais, e $s_1$ e $s_5$ representam os desvios-padrão amostrais das Ações 1 e 5, respectivamente.
+
+A partir desse valor, o tamanho de efeito padronizado associado à diferença minimamente relevante é dado por:
+
+$$
+d^*=\frac{\delta^*}{s_p} \tag{4}
+$$
+
+Inicialmente, será calculada a potência do teste para detectar uma diferença de $\delta^*=0{,}005$, considerando as 35 observações disponíveis para cada ação. Em seguida, será determinado o número de observações por ação necessário para detectar essa mesma diferença com potência de 80%.
+
+```{r potencia_A1_A5}
+# ==========================================
+# Análise de potência - A1 x A5
+# ==========================================
+
+if (!requireNamespace("pwr", quietly = TRUE)) {
+  install.packages("pwr")
+}
+
+library(pwr)
+
+# Diferença minimamente relevante
+delta <- 0.005
+
+# Tamanhos amostrais
+n1 <- length(retornos$Acao1)
+n5 <- length(retornos$Acao5)
+
+# Desvios-padrão amostrais
+s1 <- sd(retornos$Acao1)
+s5 <- sd(retornos$Acao5)
+
+# Desvio-padrão combinado
+sp <- sqrt(
+  ((n1 - 1) * s1^2 + (n5 - 1) * s5^2) /
+  (n1 + n5 - 2)
+)
+
+# Tamanho de efeito padronizado associado a delta*
+d <- delta / sp
+
+sp
+d
+
+# Potência com o tamanho amostral disponível
+potencia_atual <- pwr.t.test(
+  n = 35,
+  d = d,
+  sig.level = 0.05,
+  power = NULL,
+  type = "two.sample",
+  alternative = "two.sided"
+)
+
+potencia_atual
+
+# Tamanho amostral necessário para potência de 80%
+n_necessario <- pwr.t.test(
+  n = NULL,
+  d = d,
+  sig.level = 0.05,
+  power = 0.80,
+  type = "two.sample",
+  alternative = "two.sided"
+)
+
+n_necessario
+```
+
+Com as 35 observações disponíveis para cada ação, a potência do teste para detectar uma diferença de $\delta^*=0{,}005$ é de aproximadamente 51,1%, inferior aos 80% estabelecidos no planejamento. Para atingir uma potência de 80%, mantendo o nível de significância de 5%, a diferença minimamente relevante de 0,5 ponto percentual e a variabilidade estimada a partir dos dados, seriam necessárias aproximadamente 69 observações por ação.
+
+### Evidências adicionais para escolha entre A1 e A5
+
+As análises anteriores indicaram que as Ações 1 e 5 apresentam os maiores retornos médios mensais, sem que tenha sido identificada diferença estatisticamente significativa entre seus retornos médios. Dessa forma, para fornecer evidências adicionais que auxiliem na escolha de uma única ação, serão analisados aspectos relacionados ao retorno e ao risco das duas ações candidatas.
+
+Visando complementar a comparação dos retornos médios realizada anteriormente, serão considerados os seguintes indicadores:
+
+- Retorno médio mensal: retorno médio observado ao longo do período;
+- Desvio-padrão dos retornos: medida da volatilidade dos retornos mensais;
+- Frequência de retornos negativos: proporção de meses em que a ação apresentou retorno negativo;
+- Perda média: média dos retornos nos meses em que ocorreram retornos negativos;
+- Maior perda mensal: menor retorno mensal observado no período.
+
+Os indicadores acima são baseados no comportamento histórico da amostra e não garantem que o mesmo padrão será observado no mês seguinte, uma vez que o desempenho das ações pode ser influenciado por diversos fatores externos.
+
+```{r evidencias_adicionais}
+# ==========================================
+# Evidências adicionais para A1 e A5
+# ==========================================
+
+# Seleção das ações candidatas
+A1 <- retornos$Acao1
+A5 <- retornos$Acao5
+
+# Função para calcular os indicadores
+indicadores <- function(x) {
+  c(
+    Retorno_medio = mean(x),
+    Desvio_padrao = sd(x),
+    Meses_negativos = sum(x < 0),
+    Proporcao_negativos = mean(x < 0),
+    Perda_media = ifelse(any(x < 0), mean(x[x < 0]), NA),
+    Maior_perda = min(x)
+  )
+}
+
+# Cálculo dos indicadores
+comparacao <- rbind(
+  A1 = indicadores(A1),
+  A5 = indicadores(A5)
+)
+
+comparacao
+```
+
+A Ação 5 apresentou retorno médio mensal de aproximadamente 1,76%, superior aos 1,46% observados para a Ação 1, embora essa diferença não tenha sido estatisticamente significativa nas análises anteriores. Em relação à volatilidade, a Ação 5 apresentou desvio-padrão amostral de aproximadamente 1,01%, enquanto a Ação 1 apresentou aproximadamente 1,07%, sendo pequena a diferença observada entre as duas ações.
+
+A Ação 1 apresentou retornos negativos em 3 dos 35 meses analisados (8,57%), enquanto a Ação 5 apresentou retorno negativo em apenas 1 mês (2,86%). Nos meses de desvalorização, a perda média da Ação 1 foi de aproximadamente 0,76%, enquanto a única perda observada para a Ação 5 foi de aproximadamente 0,02%. A maior perda mensal observada foi de aproximadamente 1,10% para a Ação 1 e 0,02% para a Ação 5.
+
+Portanto, a Ação 5 apresentou maior retorno médio, menor desvio-padrão amostral, menor frequência de retornos negativos e menor magnitude das perdas em comparação com a Ação 1. Além disso, o maior retorno médio observado para a Ação 5 não esteve associado a uma maior variabilidade dos retornos no período analisado. Em conjunto, esses resultados constituem evidências descritivas adicionais favoráveis à Ação 5 para a escolha entre as duas ações candidatas.
+
+## Conclusões e recomendações
+
+O presente estudo buscou comparar os retornos médios mensais de cinco ações e fornecer ao investidor uma recomendação para a aplicação de seu capital no próximo mês. A análise de variância indicou a existência de diferenças estatisticamente significativas entre os retornos médios mensais das ações.
+
+As comparações múltiplas pelo método de Tukey mostraram que as Ações 1 e 5 apresentam retornos médios significativamente superiores aos das Ações 2, 3 e 4. Entretanto, não foi identificada diferença estatisticamente significativa entre os retornos médios das Ações 1 e 5. O teste $t$ realizado posteriormente apresentou resultado consistente com o procedimento de Tukey, não fornecendo evidências estatísticas suficientes para afirmar que os retornos médios dessas duas ações são diferentes.
+
+Diante da impossibilidade de distinguir estatisticamente as Ações 1 e 5 com base em seus retornos médios, foram consideradas evidências descritivas adicionais. A Ação 5 apresentou maior retorno médio mensal, menor desvio-padrão amostral, menor frequência de retornos negativos e menor magnitude das perdas observadas. Assim, considerando conjuntamente as evidências obtidas no período analisado, recomenda-se a Ação 5 entre as cinco alternativas disponíveis para a aplicação do capital.
+
+Essa recomendação deve ser interpretada considerando as limitações do estudo. Os dados são históricos e observacionais, abrangem apenas 35 retornos mensais por ação e não incluem informações adicionais sobre o período analisado, a identificação das ações ou outros fatores de mercado que possam afetar seu desempenho futuro.
+
+Como melhorias para estudos futuros, recomenda-se ampliar o período de observação, buscando atingir pelo menos o tamanho amostral indicado pela análise de potência, e avaliar a estabilidade dos resultados em diferentes períodos. Além disso, informações sobre as condições de mercado e características específicas das ações poderiam ser consideradas para fornecer uma avaliação mais abrangente das alternativas de investimento.
+
+### Contribuições dos membros da equipe
+
+- **Bernardo de Souza Silva - Relator e Analista:** responsável pela implementação dos códigos e realização das análises estatísticas até a etapa de comparações múltiplas pelo método de Tukey, além de contribuir na redação e revisão do relatório.
+- **Fabio Emmanuel Ferreira Xavier - Verificador e Analista:** responsável pela realização das análises posteriores às comparações múltiplas pelo método de Tukey e pela revisão do relatório.
+- **Isabela Costa Trivellato - Verificadora e Analista:** responsável pela redação do relatório e pela organização e interpretação dos resultados das análises realizadas pela equipe.
+
+### Declaração sobre o uso de inteligência artificial generativa e tecnologias assistidas por IA na elaboração do relatório
+
+Durante a elaboração deste trabalho, os autores utilizaram o ChatGPT (OpenAI) para auxiliar na revisão e correção dos códigos e do texto, além de identificar possíveis lacunas conceituais. Após o uso da ferramenta, os autores revisaram e editaram o conteúdo conforme necessário e assumem total responsabilidade pelo conteúdo apresentado neste relatório.
+
+## Referências
+
+[1] BESSANI, Michel. Planejamento e Análise de Experimentos: Inferência Estatística. Belo Horizonte: Universidade Federal de Minas Gerais, Programa de Pós-Graduação em Engenharia Elétrica, 2026. Notas de aula.
+
+[2] BLAU, Benjamin M.; WHITBY, Ryan J. The volatility of bid-ask spreads. Financial Management, v. 44, n. 4, p. 851-874, 2015. DOI: 10.1111/fima.12092.
+
+[3] LIU, Jinjing. A novel downside risk measure and expected returns. Washington, DC: World Bank, 2019. (Policy Research Working Paper, n. 8947).
+
+[4] BESSANI, Michel. Planejamento e Análise de Experimentos: Análise de Variância (ANOVA). Belo Horizonte: Universidade Federal de Minas Gerais, Programa de Pós-Graduação em Engenharia Elétrica, 2026. Notas de aula.
+
